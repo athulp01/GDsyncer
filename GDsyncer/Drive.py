@@ -1,9 +1,12 @@
 from apiclient import discovery, http
+from oauth2client import file, tools, client
+
 import httplib2
-from oauth2client import file,tools,client
+import mimetypes
+import os
 
 
-class Drive:
+class GoogleDrive:
 
     scopes = "https://www.googleapis.com/auth/drive"
     app_name = "GDsycncer"
@@ -16,7 +19,9 @@ class Drive:
         Set the secret_file variable
         :param string secret_file: path to the client_id.json
         """
-        self.secret_file = secret_file
+        try:
+            self.secret_file = secret_file
+
 
     def authenticate(self, credentials_path=None):
         """
@@ -58,7 +63,20 @@ class Drive:
         return files
 
     def upload_file(self, file_path, folder_id):
-        file_metadata = { 'name':'name.pdf', 'parents': [folder_id]}
-        media = http.MediaFileUpload(file_path, mimetype='application/pdf', resumable=True)
-        file = self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        """
+        Upload a file to a specified directory.
+        :param file_path: Absolute or relative path to the file
+        :param folder_id: The id of the directory to which the file is to be uploaded
+        :return:
+        """
+        (directory, filename) = os.path.split(file_path)
+        (mime, encoding) = mimetypes.guess_type(file_path)
+        if mime is None:
+            mime = "application/octet-stream"
 
+        media = http.MediaFileUpload(file_path, mimetype=mime, resumable=True)
+        body = {
+            'title': filename,
+            'parents': [{'id': folder_id}]
+        }
+        file = self.service.files().create(body=body, media_body=media).execute()
