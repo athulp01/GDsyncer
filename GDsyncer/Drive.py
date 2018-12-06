@@ -19,9 +19,7 @@ class GoogleDrive:
         Set the secret_file variable
         :param string secret_file: path to the client_id.json
         """
-        try:
-            self.secret_file = secret_file
-
+        self.secret_file = secret_file
 
     def authenticate(self, credentials_path=None):
         """
@@ -47,8 +45,9 @@ class GoogleDrive:
         :type name : String
         :return: ID(String) of the matching directory if it exists or else None
         """
-        directory = self.service.files().list(q="mimeType = 'application/vnd.google-apps.folder' and name = %s" % name)
-        return directory.get('id')
+        query = "mimeType = 'application/vnd.google-apps.folder' and name = '%s'" % name
+        directory = self.service.files().list(q=query).execute()
+        return directory.get('files')[0].get('id')
 
     def list_files(self, directory_id):
         """
@@ -56,13 +55,13 @@ class GoogleDrive:
         :param directory_id: Alphanumerical id of the parent directory
         :return: A dict with key as file name and value as file id
         """
-        response = self.service.files().list(q="'%s' in parents" % directory_id).execute()
+        response = self.service.files().list(q="'%s' in parents" % directory_id, fields='files').execute()
         files = {}
         for info in response.get('files'):
-            files[info.get('name')] = info.get('id')
+            files[info.get('name')] = info.get('md5Checksum')
         return files
 
-    def upload_file(self, file_path, folder_id):
+    def upload_file(self, file_path, folder_id=''):
         """
         Upload a file to a specified directory.
         :param file_path: Absolute or relative path to the file
@@ -76,7 +75,9 @@ class GoogleDrive:
 
         media = http.MediaFileUpload(file_path, mimetype=mime, resumable=True)
         body = {
-            'title': filename,
-            'parents': [{'id': folder_id}]
+            'name': filename,
+            'parents': [folder_id]
         }
-        file = self.service.files().create(body=body, media_body=media).execute()
+        self.service.files().create(body=body, media_body=media).execute()
+
+
