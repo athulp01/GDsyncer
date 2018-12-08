@@ -4,6 +4,8 @@ from oauth2client import file, tools, client
 import httplib2
 import mimetypes
 import os
+import io
+import hashlib
 
 
 class GoogleDrive:
@@ -56,10 +58,7 @@ class GoogleDrive:
         :return: A dict with key as file name and value as file id
         """
         response = self.service.files().list(q="'%s' in parents" % directory_id, fields='files').execute()
-        files = {}
-        for info in response.get('files'):
-            files[info.get('name')] = info.get('md5Checksum')
-        return files
+        return response.get('files')
 
     def upload_file(self, file_path, folder_id=''):
         """
@@ -80,4 +79,73 @@ class GoogleDrive:
         }
         self.service.files().create(body=body, media_body=media).execute()
 
+    def create_folder(self, folder_name, parent_folder_id = ''):
+        """
+        Create a folder
+        :param folder_name: Name of the folder to be created.
+        :param parent_folder_id: Id of the parent folder. Created in the root folder by default.
+        :return: ID of the created folder.
+        """
+        file_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': parent_folder_id
+        }
+
+        file = self.service.files().create(body=file_metadata, fields='id').execute()
+        return file.get('id')
+
+    def download_file(self, file_id):
+        """
+        Download a file given it's file id.
+        :param file_id: File ID of the file to be downloaded.
+        :return: ByteIO object of the file which can be saved to a file in the local system.
+        """
+        request = self.service.files().get_media(fileId=file_id)
+        file_handler = io.BytesIO()
+        downloader = http.MediaIoBaseDownload(file_handler, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            print("Download %d%%. " % int(status.progress()*100))
+        return file_handler
+
+
+class Watcher:
+
+    def __init__(self, root_dir, drive_object):
+        self.root_dir = root_dir
+        self.drive_object = drive_object
+        self.current_id = self.drive_object.get_directory_id(root_dir.split('/')[-1])
+        contents = os.listdir(root_dir)
+        self.local_files = {}
+        self.local_folders = {}
+        self.cloud_files = {}
+        self.cloud_folders = {}
+        md5 = lambda path : hashlib.md5(open(path,'rb').read()).hexdigest()
+        for content in contents:
+            path = os.path.join(root_dir, content)
+            if os.path.isfile(path):
+                self.local_files[content] = 1
+            else:
+                self.local_folders[content] = 1
+
+        response = drive_object.list_files()
+        # TODO 1: check for hashsum
+        for file in response:
+            if file.get("mimeType") == "application/vnd.google-apps.folder":
+                if self.local_folders.get(file.get('name'))is None:
+                    self.cloud_folders[file.get('name')] = file.get('id')
+            else:
+                if self.local_files.get(file.get('name')) is None:
+                    self.cloud_files[file.get('name')] = file.get('id')
+                else:
+                    self.local_files[file.get('name')] = 0
+
+    def push(self):
+        # TODO 2: recursively upload(folder within a folder)
+        for file,flag in self.local_files.items():
+            if flag is 1:
+                path = os.path.join(self.root_dir, file)
+                self.drive_object.upload_file(path, self.current_id)
 
