@@ -34,18 +34,18 @@ class GoogleDrive:
         """
         self.secret_file = secret_file
 
-    def authenticate(self, credentials_path=None):
+    def authenticate(self, credentials_path='credentials.dat'):
         """
         Redirect the user to a web authentication portal if not authenticated and then build the drive service.
         :param string credentials_path: Path to the file containing the user credentials
         :return: None
         """
+        flow = client.flow_from_clientsecrets(self.secret_file, self.scopes)
         storage = file.Storage(credentials_path)
         cred = storage.get()
         if cred is None or cred.invalid:
-            flow = client.flow_from_clientsecrets(self.secret_file, self.scopes)
             flow.user_agent = self.app_name
-            cred = tools.run_flow(flow, storage)
+            cred = tools.run_flow(flow,storage)
         self.credentials = cred
         httpobj = httplib2.Http()
         httpobj = cred.authorize(httpobj)
