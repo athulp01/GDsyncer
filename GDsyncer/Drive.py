@@ -118,34 +118,40 @@ class Watcher:
         self.drive_object = drive_object
         self.current_id = self.drive_object.get_directory_id(root_dir.split('/')[-1])
         contents = os.listdir(root_dir)
-        self.local_files = {}
-        self.local_folders = {}
-        self.cloud_files = {}
-        self.cloud_folders = {}
+        self.local_files = set()
+        self.local_folders = set()
+        self.cloud_files = dict()
+        self.cloud_folders = dict()
         md5 = lambda path : hashlib.md5(open(path,'rb').read()).hexdigest()
         for content in contents:
             path = os.path.join(root_dir, content)
             if os.path.isfile(path):
-                self.local_files[content] = 1
+                self.local_files.add(content)
             else:
-                self.local_folders[content] = 1
+                self.local_folders.add(content)
 
-        response = drive_object.list_files()
+        response = drive_object.list_files(self.current_id)
         # TODO 1: check for hashsum
         for file in response:
             if file.get("mimeType") == "application/vnd.google-apps.folder":
-                if self.local_folders.get(file.get('name'))is None:
+                if file.get('name') not in self.local_folders:
                     self.cloud_folders[file.get('name')] = file.get('id')
             else:
-                if self.local_files.get(file.get('name')) is None:
+                if file.get('name') not in self.local_files:
                     self.cloud_files[file.get('name')] = file.get('id')
                 else:
-                    self.local_files[file.get('name')] = 0
+                    self.local_files.remove(file.get('name'))
 
     def push(self):
         # TODO 2: recursively upload(folder within a folder)
-        for file,flag in self.local_files.items():
-            if flag is 1:
+        for file in self.local_files:
                 path = os.path.join(self.root_dir, file)
+                print("Uploading %s" % file)
                 self.drive_object.upload_file(path, self.current_id)
+
+    def pull(self):
+        for name, id in self.cloud_files.items():
+            file = open(os.path.join(self.root_dir, name), 'wb')
+            print("Downloading %s" % name)
+            file.write(self.drive_object.download_file(id).getvalue())
 
