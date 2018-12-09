@@ -5,6 +5,6 @@ Using GDsyncer you can easily sync files with your Google Drive. It will fetch a
 
 ## Instructions
 1. Execute the binary by providing the name of the folder in GDrive and the corresponding local folder as arguments.
-![image]
-(https://github.com/athulpn/GDsyncer/blob/master/carbon.png)
+![terminal] 
+(https://raw.githubusercontent.com/athulpn/GDsyncer/master/carbon.png)
 
