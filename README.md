@@ -1,4 +1,4 @@
 # GSyncer
-Keep a folder in sync with cloud on a Linux system
+Keep a folder in sync with Google drive.
 
-*Vacation project
+
