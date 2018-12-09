@@ -8,6 +8,17 @@ import io
 import hashlib
 
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 class GoogleDrive:
 
     scopes = "https://www.googleapis.com/auth/drive"
@@ -107,17 +118,16 @@ class GoogleDrive:
         done = False
         while not done:
             status, done = downloader.next_chunk()
-            print("Download %d%%. " % int(status.progress()*100))
         return file_handler
 
 
 class Watcher:
 
-    def __init__(self, root_dir, drive_object):
-        self.root_dir = root_dir
+    def __init__(self, fold_name, root_dir, drive_object):
+        self.root_dir = os.path.abspath(root_dir)
         self.drive_object = drive_object
-        self.current_id = self.drive_object.get_directory_id(root_dir.split('/')[-1])
-        contents = os.listdir(root_dir)
+        self.current_id = self.drive_object.get_directory_id(fold_name)
+        contents = os.listdir(self.root_dir)
         self.local_files = set()
         self.local_folders = set()
         self.cloud_files = dict()
@@ -146,12 +156,12 @@ class Watcher:
         # TODO 2: recursively upload(folder within a folder)
         for file in self.local_files:
                 path = os.path.join(self.root_dir, file)
-                print("Uploading %s" % file)
+                print(bcolors.OKBLUE+"Uploading %s" % file + bcolors.ENDC)
                 self.drive_object.upload_file(path, self.current_id)
 
     def pull(self):
         for name, id in self.cloud_files.items():
             file = open(os.path.join(self.root_dir, name), 'wb')
-            print("Downloading %s" % name)
+            print(bcolors.OKGREEN+"Downloading %s" % name + bcolors.ENDC)
             file.write(self.drive_object.download_file(id).getvalue())
 
